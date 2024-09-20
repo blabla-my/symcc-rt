@@ -215,6 +215,22 @@ SymExpr _sym_build_integer128(uint64_t high, uint64_t low) {
   return registerExpression(g_expr_builder->createConstant({128, words}, 128));
 }
 
+SymExpr _sym_build_integer128_from_vector(uint64_t v0, uint64_t v1){
+  std::array<uint64_t, 2> words = {v0, v1};
+  return registerExpression(g_expr_builder->createConstant({128, words}, 128));
+}
+
+SymExpr _sym_build_integer256_from_vector(uint64_t v0, uint64_t v1, uint64_t v2, uint64_t v3){
+  std::array<uint64_t, 4> words = {v0, v1, v2, v3};
+  return registerExpression(g_expr_builder->createConstant({256, words},256));
+}
+
+SymExpr _sym_build_integer512_from_vector(uint64_t v0, uint64_t v1, uint64_t v2, uint64_t v3,
+        uint64_t v4, uint64_t v5, uint64_t v6, uint64_t v7){
+  std::array<uint64_t, 8> words = {v0, v1, v2, v3, v4, v5, v6, v7};
+  return registerExpression(g_expr_builder->createConstant({512, words}, 512));
+}
+
 SymExpr _sym_build_integer_from_buffer(void *buffer, unsigned num_bits) {
   assert(num_bits % 64 == 0);
   return registerExpression(g_expr_builder->createConstant(

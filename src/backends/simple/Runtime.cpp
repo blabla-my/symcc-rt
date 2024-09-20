@@ -23,6 +23,7 @@
 #include <iostream>
 #include <set>
 #include <vector>
+#include <z3_api.h>
 
 #ifndef NDEBUG
 #include <chrono>
@@ -169,6 +170,34 @@ Z3_ast _sym_build_integer(uint64_t value, uint8_t bits) {
 Z3_ast _sym_build_integer128(uint64_t high, uint64_t low) {
   return registerExpression(Z3_mk_concat(
       g_context, _sym_build_integer(high, 64), _sym_build_integer(low, 64)));
+}
+
+#define concat_int(x,y) Z3_mk_concat(g_context, _sym_build_integer(x,64), _sym_build_integer(y,64))
+#define concat_expr_and_int(e,y) Z3_mk_concat(g_context, e, _sym_build_integer(y,64))
+
+Z3_ast _sym_build_integer128_from_vector(uint64_t v0, uint64_t v1){
+  return registerExpression(concat_int(v0,v1));
+}
+
+Z3_ast _sym_build_integer256_from_vector(uint64_t v0, uint64_t v1, uint64_t v2, uint64_t v3){
+  Z3_ast to_register = concat_expr_and_int(
+                          concat_expr_and_int(
+                            concat_int(v0, v1), v2), 
+                        v3);
+  return registerExpression(to_register);
+}
+
+Z3_ast _sym_build_integer512_from_vector(uint64_t v0, uint64_t v1, uint64_t v2, uint64_t v3,
+        uint64_t v4, uint64_t v5, uint64_t v6, uint64_t v7){
+  Z3_ast to_register = concat_expr_and_int(
+                        concat_expr_and_int(
+                        concat_expr_and_int(
+                        concat_expr_and_int(
+                        concat_expr_and_int(
+                        concat_expr_and_int(
+                            concat_int(v0, v1),
+                        v2),v3),v4),v5),v6),v7);
+  return registerExpression(to_register);
 }
 
 Z3_ast _sym_build_float(double value, int is_double) {
