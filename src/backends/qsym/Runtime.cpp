@@ -19,6 +19,7 @@
 
 #include "Runtime.h"
 #include "GarbageCollection.h"
+#include <sys/types.h>
 
 // C++
 #if __has_include(<filesystem>)
@@ -333,11 +334,11 @@ SymExpr _sym_build_trunc(SymExpr expr, uint8_t bits) {
 }
 
 void _sym_push_path_constraint(SymExpr constraint, int taken,
-                               uintptr_t site_id) {
+                               uintptr_t site_id, const char* filename, uint32_t ln, uint32_t col) {
   if (constraint == nullptr)
     return;
 
-  g_solver->addJcc(allocatedExpressions.at(constraint), taken != 0, site_id);
+  g_solver->addJcc(allocatedExpressions.at(constraint), taken != 0, site_id, filename, ln, col);
 }
 
 SymExpr _sym_get_input_byte(size_t offset, uint8_t value) {
