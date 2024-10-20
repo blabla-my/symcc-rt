@@ -461,21 +461,21 @@ void _sym_register_expression_region(SymExpr *start, size_t length) {
 }
 
 void _sym_make_symbolic(const void *data, size_t byte_length,
-                        size_t input_offset) {
+                        size_t input_offset, const char* name) {
   ReadWriteShadow shadow(data, byte_length);
   const uint8_t *data_bytes = reinterpret_cast<const uint8_t *>(data);
   std::generate(shadow.begin(), shadow.end(), [&, i = 0]() mutable {
-    return _sym_get_input_byte(input_offset++, data_bytes[i++]);
+    return _sym_get_input_byte(input_offset++, data_bytes[i++], name);
   });
 }
 
-void symcc_make_symbolic(const void *start, size_t byte_length) {
+void symcc_make_symbolic(const void *start, size_t byte_length, const char* name) {
   if (!std::holds_alternative<MemoryInput>(g_config.input))
     throw std::runtime_error{"Calls to symcc_make_symbolic aren't allowed when "
                              "SYMCC_MEMORY_INPUT isn't set"};
 
-  static size_t inputOffset = 0; // track the offset across calls
-  _sym_make_symbolic(start, byte_length, inputOffset);
+  size_t inputOffset = 0; // track the offset across calls
+  _sym_make_symbolic(start, byte_length, inputOffset, name);
   inputOffset += byte_length;
 }
 

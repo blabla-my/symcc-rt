@@ -24,6 +24,9 @@
 #include <set>
 #include <vector>
 #include <z3_api.h>
+#include <string>
+#include <fstream>
+#include <map>
 
 #ifndef NDEBUG
 #include <chrono>
@@ -209,19 +212,38 @@ Z3_ast _sym_build_float(double value, int is_double) {
   return result;
 }
 
-Z3_ast _sym_get_input_byte(size_t offset, uint8_t) {
-  static std::vector<SymExpr> stdinBytes;
+Z3_ast _sym_get_input_byte(size_t offset, uint8_t, const char* name) {
+  if (name == nullptr){
+    static std::vector<SymExpr> stdinBytes;
 
-  if (offset < stdinBytes.size())
-    return stdinBytes[offset];
+    if (offset < stdinBytes.size())
+      return stdinBytes[offset];
 
-  auto varName = "stdin" + std::to_string(stdinBytes.size());
-  auto *var = build_variable(varName.c_str(), 8);
+    auto varName = "stdin" + std::to_string(stdinBytes.size());
+    auto *var = build_variable(varName.c_str(), 8);
 
-  stdinBytes.resize(offset);
-  stdinBytes.push_back(var);
+    stdinBytes.resize(offset);
+    stdinBytes.push_back(var);
 
-  return var;
+    return var;
+  }
+  else{
+    typedef std::vector<SymExpr> SymBytes;
+    static std::map<std::string, SymBytes> namedBytes;
+    if (namedBytes.count(name) == 0){
+      namedBytes[name] = SymBytes();
+    }
+    if (offset < namedBytes[name].size()){
+      return namedBytes[name][offset];
+    }
+    else{
+      auto varName = name + std::to_string(namedBytes[name].size());
+      auto *var = build_variable(varName.c_str(), 8);
+      namedBytes[name].resize(offset);
+      namedBytes[name].push_back(var);
+      return var;
+    }
+  }
 }
 
 Z3_ast _sym_build_null_pointer(void) { return g_null_pointer; }
@@ -461,9 +483,17 @@ Z3_ast _sym_build_bool_to_bit(Z3_ast expr) {
 }
 
 void _sym_push_path_constraint(Z3_ast constraint, int taken,
-                               uintptr_t site_id [[maybe_unused]]) {
+                               uintptr_t site_id [[maybe_unused]], const char* filename, uint32_t ln, uint32_t col) {
   if (constraint == nullptr)
     return;
+  static std::ofstream ofs("/tmp/constraint.txt", std::ofstream::out);
+  std::string dbginfo;
+  if(filename != nullptr)
+    dbginfo = "file: " + std::string(filename) + ", line: " + std::to_string(ln) + ", col: " + std::to_string(col);
+  ofs << "#START_EXPR " << Z3_ast_to_string(g_context, Z3_simplify(g_context, constraint)) << " #END_EXPR\n";
+  ofs << "#START_DBG " << dbginfo << " #END_DBG\n"; 
+  ofs.flush();
+  return ;
 
   constraint = Z3_simplify(g_context, constraint);
   Z3_inc_ref(g_context, constraint);
