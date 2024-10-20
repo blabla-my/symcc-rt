@@ -15,7 +15,6 @@
 
 #include <Runtime.h>
 
-#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cstdio>
@@ -27,6 +26,7 @@
 #include <string>
 #include <fstream>
 #include <map>
+#include <queue>
 
 #ifndef NDEBUG
 #include <chrono>
@@ -482,22 +482,63 @@ Z3_ast _sym_build_bool_to_bit(Z3_ast expr) {
                         _sym_build_integer(0, 1));
 }
 
+static std::set<Z3_func_decl> get_var_declaration(Z3_ast ast){
+  // using bfs to collect all decls 
+  std::set<Z3_func_decl> decls;
+  std::queue<Z3_ast> q;
+  q.push(ast);
+  Z3_inc_ref(g_context, ast);
+  while (!q.empty()) {
+    Z3_ast cur = q.front();
+    q.pop();
+    Z3_dec_ref(g_context, cur);
+    if (Z3_get_ast_kind(g_context, cur) == Z3_APP_AST){
+      Z3_func_decl decl = Z3_get_app_decl(g_context, (Z3_app)cur);
+      if (Z3_get_decl_kind(g_context, decl) == Z3_OP_UNINTERPRETED){
+        decls.insert(decl);
+      }
+      unsigned num_args = Z3_get_app_num_args(g_context, (Z3_app)cur);
+      for (unsigned i = 0; i < num_args; i++){
+        q.push(Z3_get_app_arg(g_context, (Z3_app)cur, i));
+        Z3_inc_ref(g_context, Z3_get_app_arg(g_context, (Z3_app)cur, i));
+      }
+    }
+  } 
+  return decls;
+}
+
+static std::string serialize(Z3_ast ast){
+  std::string ret;
+  Z3_inc_ref(g_context, ast);
+  std::set<Z3_func_decl> decls = get_var_declaration(ast);
+  for (auto decl : decls){
+    ret.append(Z3_func_decl_to_string(g_context, decl));
+  }
+  ret.append("(assert ");
+  ret.append(Z3_ast_to_string(g_context, ast));
+  ret.append(")");
+  Z3_dec_ref(g_context, ast);
+  return ret;
+}
+
 void _sym_push_path_constraint(Z3_ast constraint, int taken,
                                uintptr_t site_id [[maybe_unused]], const char* filename, uint32_t ln, uint32_t col) {
   if (constraint == nullptr)
     return;
-  static std::ofstream ofs("/tmp/constraint.txt", std::ofstream::out);
-  std::string dbginfo;
-  if(filename != nullptr)
-    dbginfo = "file: " + std::string(filename) + ", line: " + std::to_string(ln) + ", col: " + std::to_string(col);
-  ofs << "#START_EXPR " << Z3_ast_to_string(g_context, Z3_simplify(g_context, constraint)) << " #END_EXPR\n";
-  ofs << "#START_DBG " << dbginfo << " #END_DBG\n"; 
-  ofs.flush();
-  return ;
 
   constraint = Z3_simplify(g_context, constraint);
   Z3_inc_ref(g_context, constraint);
 
+  static std::ofstream ofs("/tmp/constraint.txt", std::ofstream::out);
+  std::string dbginfo;
+  if(filename != nullptr)
+    dbginfo = "file: " + std::string(filename) + ", line: " + std::to_string(ln) + ", col: " + std::to_string(col);
+  ofs << "#START_EXPR " << serialize(constraint) << " #END_EXPR\n";
+  ofs << "#START_DBG " << dbginfo << " #END_DBG\n"; 
+  ofs.flush();
+
+  Z3_dec_ref(g_context, constraint);
+  return ;
   /* Check the easy cases first: if simplification reduced the constraint to
      "true" or "false", there is no point in trying to solve the negation or *
      pushing the constraint to the solver... */
