@@ -522,24 +522,33 @@ static std::string serialize(Z3_ast ast){
   return ret;
 }
 
-void _sym_push_path_constraint(Z3_ast constraint, int taken,
-                               uintptr_t site_id [[maybe_unused]], const char* filename, uint32_t ln, uint32_t col) {
-  if (constraint == nullptr)
-    return;
-
+void output_to_serialization_file(Z3_ast constraint, const char* filename, uint32_t ln, uint32_t col){
   constraint = Z3_simplify(g_context, constraint);
   Z3_inc_ref(g_context, constraint);
 
   static std::string serialization_file_name = g_config.outputDir + "/constraint-" + std::to_string(getpid());
-  static std::ofstream ofs(serialization_file_name, std::ofstream::out);
-  std::string dbginfo;
-  if(filename != nullptr)
-    dbginfo = "file: " + std::string(filename) + ", line: " + std::to_string(ln) + ", col: " + std::to_string(col);
-  ofs << "#START_EXPR " << serialize(constraint) << " #END_EXPR\n";
-  ofs << "#START_DBG " << dbginfo << " #END_DBG\n"; 
-  ofs.flush();
+  static std::ofstream ofs(serialization_file_name, std::ios_base::app);
+  static std::set<unsigned> serialized_constraint; 
 
+  unsigned hash = Z3_get_ast_hash(g_context, constraint);
+  if (serialized_constraint.find(hash) == serialized_constraint.end()){
+    std::string dbginfo;
+    if(filename != nullptr)
+      dbginfo = "file: " + std::string(filename) + ", line: " + std::to_string(ln) + ", col: " + std::to_string(col);
+    ofs << "#START_EXPR " << serialize(constraint) << " #END_EXPR\n";
+    ofs << "#START_DBG " << dbginfo << " #END_DBG\n"; 
+    ofs << "#START_HASH " << hash << " #END_HASH\n";
+    ofs.flush();
+    serialized_constraint.insert(hash);
+  }
   Z3_dec_ref(g_context, constraint);
+}
+
+void _sym_push_path_constraint(Z3_ast constraint, int taken,
+                               uintptr_t site_id [[maybe_unused]], const char* filename, uint32_t ln, uint32_t col) {
+  if (constraint == nullptr)
+    return;
+  output_to_serialization_file(constraint, filename, ln, col);
   return ;
   /* Check the easy cases first: if simplification reduced the constraint to
      "true" or "false", there is no point in trying to solve the negation or *
