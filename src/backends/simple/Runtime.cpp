@@ -27,6 +27,7 @@
 #include <fstream>
 #include <map>
 #include <queue>
+#include <unistd.h>
 
 #ifndef NDEBUG
 #include <chrono>
@@ -529,7 +530,8 @@ void _sym_push_path_constraint(Z3_ast constraint, int taken,
   constraint = Z3_simplify(g_context, constraint);
   Z3_inc_ref(g_context, constraint);
 
-  static std::ofstream ofs("constraint.txt", std::ofstream::out);
+  static std::string serialization_file_name = g_config.outputDir + "/constraint-" + std::to_string(getpid());
+  static std::ofstream ofs(serialization_file_name, std::ofstream::out);
   std::string dbginfo;
   if(filename != nullptr)
     dbginfo = "file: " + std::string(filename) + ", line: " + std::to_string(ln) + ", col: " + std::to_string(col);
