@@ -535,9 +535,11 @@ void output_to_serialization_file(Z3_ast constraint, const char* filename, uint3
     std::string dbginfo;
     if(filename != nullptr)
       dbginfo = "file: " + std::string(filename) + ", line: " + std::to_string(ln) + ", col: " + std::to_string(col);
+    ofs << "#START\n";
     ofs << "#START_EXPR " << serialize(constraint) << " #END_EXPR\n";
     ofs << "#START_DBG " << dbginfo << " #END_DBG\n"; 
     ofs << "#START_HASH " << hash << " #END_HASH\n";
+    ofs << "#END\n";
     ofs.flush();
     serialized_constraint.insert(hash);
   }
