@@ -178,8 +178,10 @@ void _sym_write_memory(uint8_t *addr, size_t length, SymExpr expr,
   if (expr == nullptr) {
     std::fill(shadow.begin(), shadow.end(), nullptr);
   } else {
+    size_t expr_bits = _sym_bits_helper(expr); 
     size_t i = 0;
     for (SymExpr &byteShadow : shadow) {
+      if (i+1 >= expr_bits / 8) break;
       byteShadow = little_endian
                        ? _sym_extract_helper(expr, 8 * (i + 1) - 1, 8 * i)
                        : _sym_extract_helper(expr, (length - i) * 8 - 1,
