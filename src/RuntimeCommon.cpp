@@ -481,6 +481,11 @@ void symcc_make_symbolic(const void *start, size_t byte_length, const char* name
   inputOffset += byte_length;
 }
 
+void symcc_make_unsymbolic(const void *start, size_t byte_length) {
+  ReadWriteShadow shadow(start, byte_length);
+  std::fill(shadow.begin(), shadow.end(), nullptr);
+}
+
 SymExpr _sym_build_bit_to_bool(SymExpr expr) {
   if (expr == nullptr)
     return nullptr;
